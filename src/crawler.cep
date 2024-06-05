@@ -1,0 +1,96 @@
+nat: type.
+z: nat.
+s nat: nat.
+
+#builtin NAT nat.
+#builtin NAT_ZERO z.
+#builtin NAT_SUCC s.
+
+%*** synthesis, data { control, collision, resource }
+player_id: type.
+p1: player_id.
+
+%*** synthesis, data { linking }
+room_id: type.
+r1: room_id.
+r2: room_id.
+r3: room_id.
+
+%*** synthesis, data { collision, resource, linking }
+ch_id: type.
+c1: ch_id.
+c2: ch_id.
+
+%*** data { resource }
+rsrc_id: type.
+rock: rsrc_id.
+stone: rsrc_id.
+
+%*** synthesis { resource }
+rsrc: type.
+resource rsrc_id nat: rsrc.
+
+%*** synthesis { linking, collision }
+link: type.
+exit room_id: link.
+
+% predicates
+
+%*** query { linking }
+player_in_room player_id room_id: pred.
+
+%*** query { linking }
+character_in_room ch_id room_id: pred.
+
+%*** query { resource }
+player_has player_id rsrc: pred.
+%*** query { resource }
+character_has ch_id rsrc: pred.
+
+% lists nodes and edges
+%*** query { linking, collision }
+character_link ch_id link: pred.
+%*** query { linking, collision }
+tile_link room_id link: pred.
+
+% ceptre doesn't really like breaking things up in logic-specific ways. (have tried this, it didn't go well)
+%   + i'd like to let you model games in a ceptre-y way rather than an asterism-in-ceptre way.
+% annotate predicates? transition rules? with what logic it belongs to and look at what types are involved
+stage play {
+    %*** integration { collision, linking, control }
+    take_tile_exit:
+        player_in_room P R * $tile_link R (exit R') -o player_in_room P R'.
+    %*** integration { collision, linking, control }
+    take_char_exit:
+        player_in_room P R * $character_link C (exit R') * $character_in_room C R -o player_in_room P R'.
+
+    %*** integration { collision, resource, control }
+    take_rsrc:
+        $player_in_room P R * $character_in_room C R *
+        character_has C (resource R_Id (s N)) * player_has P (resource R_Id N')
+            -o character_has C (resource R_Id N) * player_has P (resource R_Id (s N')).
+
+    % ^ for this-- you'd have to bring in all the asterism logics involved in these types to activate the rewrite rule:
+    %     player - room - rsrc,
+    % so: resource - linking - ctrl - collision.
+    %
+    % BUT some things aren't changed!! ex. only the "resource" data is modified.
+    % even though things are referenced in the ceptre rule, they're not necessarily changed ($; what pieces of what logics are effected?).
+} #interactive play.
+
+context init = {
+    % player starting position - init linking node
+    player_in_room p1 r1,
+    % character starting position
+    character_in_room c1 r2, character_in_room c2 r3,
+
+    % exits - init linking
+    character_link c1 (exit r3),
+    tile_link r1 (exit r2), tile_link r2 (exit r1), tile_link r3 (exit r2),
+
+    % resources
+    player_has p1 (resource rock 0), player_has p1 (resource stone 0),
+    character_has c1 (resource rock 2), character_has c2 (resource stone 2)
+}.
+
+#trace _ play init.

@@ -1,0 +1,65 @@
+// util
+number = @{ "0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
+notnewline = _{ !"\n" }
+
+ident = @{ id_start ~ id_cont* }
+id_start = { ASCII_ALPHA | "\\" | "/" | "-" }
+id_cont = { id_start | ASCII_DIGIT | "_" | "'" }
+hashident = @{ "#" ~ id_start+ }
+
+pred = { "pred" }
+stage = { "stage" }
+context = { "context" }
+
+// operators
+comma = { "," }    // precr 10
+colon = { ":" }    // precr 20, nonassoc
+larrow = { "<-" }  // precl 30
+llolli = { "o-" }  // precl 30
+rlolli = { "-o" }  // precr 40
+rarrow = { "->" }  // precr 40
+star = { "*" }     // precr 50
+bang = { "!" }     // precl 60
+dollar = { "$" }   // precl 60
+unify = { "==" }   // precr 80, nonassoc
+differ = { "<>" }  // precr 80, nonassoc
+wildcard = { "_" }
+
+// skip/non-ceptre
+WHITESPACE = _{ " " | "\n" | "\r" | "\t" }
+COMMENT = _{ "%" ~ (notnewline ~ ANY)* }
+// this needs more stuff but we don't talk abt it
+annote = { "%***" ~ (notnewline ~ ANY)* }
+
+// rules
+tops = { top* }
+top = {
+    annote_syn ~ "."
+  | stage ~ ident ~ op_equals ~ "{" ~ tops ~ "}" ~ op_period
+  | context ~ ident ~ op_equals ~ "{" ~ op_syn ~ "}" ~ op_period
+  | hashident ~ atomic* ~ "."
+}
+
+syn = { prefix* ~ primary ~ postfix* ~ (infix ~ prefix* ~ primary ~ postfix*)* }
+annote_syn = { annote? ~ syn }
+primary = { stage ~ ident | atomic+ }
+infix = _{ colon | rlolli | llolli | rarrow | larrow | star | comma | unify | differ }
+prefix = _{ bang | dollar }
+postfix = _{ rlolli }
+
+braces_syn = { "(" ~ syn ~ ")" | "{" ~ syn ~ "}" }
+empty_braces = { "(" ~ ")" | "{" ~ "}" }
+
+atomic = {
+    braces_syn
+  | empty_braces
+  | ident
+  | wildcard
+  | pred
+  | number
+}
+
+op_equals = _{ "="? }
+op_period = _{ "."? }
+op_syn = { syn? }
+

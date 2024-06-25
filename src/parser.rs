@@ -1,16 +1,15 @@
-use crate::all_ok_or;
-use crate::preprocess::*;
-use pest::{error::Error, Parser};
+use crate::{preprocess::*, Error};
+use pest::Parser;
 use pest_derive::Parser;
 
 #[derive(Parser)]
 #[grammar = "ceptre.pest"]
 pub struct CeptreParser;
 
-pub fn ceptre_parse(file: &str) -> Result<Vec<Top>, crate::Error> {
+pub fn ceptre_parse(file: &str) -> Result<Vec<Top>, Error> {
     let file = std::fs::read_to_string(file).unwrap();
     let ceptre = CeptreParser::parse(Rule::tops, &file)
-        .map_err(|_| crate::Error::Parse)?
+        .map_err(|_| Error::Parse)?
         .next()
         .unwrap();
 
@@ -71,7 +70,7 @@ pub fn ceptre_parse(file: &str) -> Result<Vec<Top>, crate::Error> {
     }
 
     fn parse_special(pair: Pair<Rule>) -> Special {
-        let mut special_inner = pair.into_inner().next().unwrap();
+        let special_inner = pair.into_inner().next().unwrap();
         match special_inner.as_rule() {
             Rule::trace => {
                 let mut special_inner = special_inner.into_inner();
@@ -83,7 +82,7 @@ pub fn ceptre_parse(file: &str) -> Result<Vec<Top>, crate::Error> {
                         limit
                             .as_str()
                             .parse::<i32>()
-                            .map_err(|_| crate::Error::Parse)
+                            .map_err(|_| Error::Parse)
                             .unwrap(),
                     ),
                     _ => unreachable!(),

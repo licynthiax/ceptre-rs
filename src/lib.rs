@@ -1,4 +1,3 @@
-#![allow(unused)]
 pub mod parser;
 pub mod preprocess;
 
@@ -6,6 +5,13 @@ pub mod preprocess;
 pub enum Error {
     Parse,
     IllFormed,
+}
+
+pub type Result<O> = std::result::Result<O, Error>;
+
+pub fn parse(file: &str) -> Result<(preprocess::Sigma, Vec<preprocess::Program>)> {
+    let tops = parser::ceptre_parse(file)?;
+    preprocess::process(tops)
 }
 
 pub(crate) fn all_ok_or<I, E>(

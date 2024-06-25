@@ -1,15 +1,12 @@
 use crate::parser::*;
-use crate::{all_ok_or, Error};
-
-type Result<O> = std::result::Result<O, Error>;
+use crate::{all_ok_or, Error, Result};
 
 #[derive(Debug)]
 enum CSyn {
     Stage(Stage),
     Rule(Rule),
-    None(Syn),
-    Error(Top),
-    Ctx(Context),               // (* named ctx *)
+    Ctx(Context), // (* named ctx *)
+    #[allow(unused)]
     Prog(Option<i32>, Context), // limit, initial phase & initial ctx *),
     Decl(Decl),
     Bwd(BwdRule),
@@ -42,7 +39,8 @@ pub fn process(tops: Vec<Top>) -> Result<(Sigma, Vec<Program>)> {
                 }
             }
             CSyn::Ctx(context) => contexts.push(context),
-            CSyn::Prog(limit, (name, ctx)) => {
+            CSyn::Prog(_, (name, ctx)) => {
+                // limit is ignored
                 if stages.iter().any(|stage| stage.name == name) {
                     progs.push(Program {
                         init_stage: name,
@@ -58,7 +56,6 @@ pub fn process(tops: Vec<Top>) -> Result<(Sigma, Vec<Program>)> {
                     stage.nondet = mode;
                 }
             }
-            CSyn::None(_) | CSyn::Error(_) => {}
         }
     }
     let sigma = Sigma {
@@ -106,7 +103,7 @@ fn extract_top(
     mut gensym: impl FnMut() -> String,
 ) -> Result<CSyn> {
     let csyn = match top {
-        Top::Stage(name, tops) => CSyn::Stage(extract_stage(header, name, tops, gensym)?),
+        Top::Stage(name, tops) => CSyn::Stage(extract_stage(name, tops, gensym)?),
         Top::Context(name, syn) => {
             CSyn::Ctx((name, extract_context(contexts, header, syn.as_ref())?))
         }
@@ -120,7 +117,7 @@ fn extract_top(
                     Atomic::EmptyBraces => Vec::new(),
                     Atomic::Braces(syn) => extract_context(contexts, header, Some(&syn))?,
                     Atomic::Ident(name) => match contexts.iter().find(|(n, _)| n == &name) {
-                        Some((name, ctx)) => ctx.clone(),
+                        Some((_, ctx)) => ctx.clone(),
                         None => return Err(Error::IllFormed),
                     },
                     _ => return Err(Error::IllFormed),
@@ -143,7 +140,7 @@ fn extract_top(
                 let is_lolli = matches![**rhs, Syn::Infix { op: Op::Lolli, .. }];
 
                 if is_id && is_lolli {
-                    CSyn::Rule(decl_to_rule(header, Top::Decl(syn, annote), gensym)?)
+                    CSyn::Rule(decl_to_rule(Top::Decl(syn, annote), gensym)?)
                 } else {
                     extract_decl(header, syn, annote, gensym)?
                 }
@@ -293,7 +290,7 @@ fn extract_primary(
                         return Err(Error::IllFormed);
                     }
                 }
-                Classifier::Pred(PredClass::Bwd, arg_tps) => {
+                Classifier::Pred(PredClass::Bwd, _) => {
                     let name = get_ident(lhs)?;
                     return Ok(CSyn::Bwd(extract_bwd(
                         &mut 0,
@@ -310,23 +307,19 @@ fn extract_primary(
 }
 
 fn extract_stage(
-    header: &[Decl],
     name: String,
     tops: Vec<Top>,
     mut gensym: impl FnMut() -> String,
 ) -> Result<Stage> {
-    let rules = tops
-        .into_iter()
-        .map(|top| decl_to_rule(header, top, &mut gensym));
-    let mut body = all_ok_or(rules)?;
+    let rules = tops.into_iter().map(|top| decl_to_rule(top, &mut gensym));
     Ok(Stage {
         name: name.to_string(),
         nondet: Nondet::Random,
-        body,
+        body: all_ok_or(rules)?,
     })
 }
 
-fn decl_to_rule(header: &[Decl], top: Top, mut gensym: impl FnMut() -> String) -> Result<Rule> {
+fn decl_to_rule(top: Top, mut gensym: impl FnMut() -> String) -> Result<Rule> {
     let mut wild: i32 = 0;
 
     match top {
@@ -384,9 +377,7 @@ fn decl_to_rule(header: &[Decl], top: Top, mut gensym: impl FnMut() -> String) -
 fn extract_bwd(wild: &mut i32, name: &str, syn: &Syn, subgoals: &mut Vec<Atom>) -> Result<BwdRule> {
     match syn {
         Syn::Infix {
-            lhs,
-            op: Op::Arrow,
-            rhs,
+            lhs, op: Op::Arrow, ..
         } => {
             subgoals.push(extract_atom(wild, lhs, None)?);
             extract_bwd(wild, name, syn, subgoals)
@@ -671,6 +662,7 @@ pub struct Program {
     pub init_state: Vec<Atom>,
 }
 
+#[allow(unused)]
 #[derive(Debug)]
 pub struct Stage {
     name: String,
@@ -678,6 +670,7 @@ pub struct Stage {
     body: Vec<Rule>,
 }
 
+#[allow(unused)]
 #[derive(Debug)]
 pub struct StageRule {
     name: String,
@@ -702,6 +695,7 @@ pub struct Rule {
 enum Nondet {
     Random,
     Interactive,
+    #[allow(unused)]
     Ordered,
 }
 
@@ -718,17 +712,18 @@ pub struct Sigma {
 pub struct Decl {
     pub ident: String,
     pub classifier: Classifier,
-    annote: Option<Annote>,
+    pub annote: Option<Annote>,
 }
 
 #[derive(Debug, Clone)]
-pub struct Annote {
-    annote: String,
-}
+pub struct Annote(String);
 
 impl Annote {
     pub fn new(annote: String) -> Self {
-        Self { annote }
+        Self(annote)
+    }
+    pub fn get_annote(&self) -> &str {
+        &self.0
     }
 }
 
@@ -763,6 +758,7 @@ pub enum Builtin {
     Succ,
 }
 
+#[allow(unused)]
 #[derive(Debug)]
 pub struct BwdRule {
     name: String,

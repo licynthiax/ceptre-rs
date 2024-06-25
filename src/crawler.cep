@@ -76,7 +76,9 @@ stage play {
     %
     % BUT some things aren't changed!! ex. only the "resource" data is modified.
     % even though things are referenced in the ceptre rule, they're not necessarily changed ($; what pieces of what logics are effected?).
-} #interactive play.
+}
+
+#interactive play.
 
 context init = {
     % player starting position - init linking node
